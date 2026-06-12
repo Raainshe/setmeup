@@ -1,0 +1,26 @@
+FROM golang:1.25-alpine AS base
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+FROM base AS dev
+
+RUN apk add --no-cache make && go install github.com/air-verse/air@latest
+EXPOSE {{BACKEND_PORT}}
+CMD ["air", "-c", ".air.toml"]
+
+FROM base AS build
+
+RUN go build -o main cmd/api/main.go
+
+FROM alpine:3.20 AS prod
+
+WORKDIR /app
+RUN apk add --no-cache ca-certificates
+COPY --from=build /app/main /app/main
+EXPOSE {{BACKEND_PORT}}
+CMD ["./main"]

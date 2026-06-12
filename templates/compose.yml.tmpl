@@ -1,0 +1,40 @@
+services:
+  backend:
+    build:
+      context: ./{{BACKEND_NAME}}
+      dockerfile: Dockerfile
+      target: dev
+    restart: unless-stopped
+    env_file:
+      - ./{{BACKEND_NAME}}/.env
+    ports:
+      - "{{BACKEND_PORT}}:{{BACKEND_PORT}}"
+    volumes:
+      - ./{{BACKEND_NAME}}:/app
+      - go-mod-cache:/go/pkg/mod
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./{{FRONTEND_NAME}}
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "{{FRONTEND_PORT}}:{{FRONTEND_PORT}}"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./{{FRONTEND_NAME}}:/app
+      - frontend-node-modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  go-mod-cache:
+  frontend-node-modules:
+
+networks:
+  app-network:

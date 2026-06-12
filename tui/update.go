@@ -63,7 +63,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.FrontendPort = "5173"
 				}
 				m.Step = StepGenerating
-				return m, tea.Printf("Generating Code")
+				return m, m.CreateWorkspace
 			}
 		}
 	case generateMsg:

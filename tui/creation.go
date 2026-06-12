@@ -33,6 +33,11 @@ func (m Model) CreateFrontEnd() error {
 
 	frontendDir := vars["FRONTEND_NAME"]
 
+	// Generate package-lock.json so Docker and local installs are reproducible.
+	if err := exec.Command("npm", "install", "--prefix", frontendDir).Run(); err != nil {
+		return err
+	}
+
 	if err := writeRendered(
 		filepath.Join(frontendDir, "Dockerfile"),
 		templates.FrontendDocker,

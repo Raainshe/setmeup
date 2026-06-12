@@ -33,7 +33,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.BackendName = "backend"
 					m.BackendPort = "8080"
 					m.Step = StepGenerating
-					return m, tea.Printf("Generating Code")
+					return m, m.CreateWorkspace
 				}
 				m.Step = StepBackendName
 				return m, tea.Batch(textinput.Blink, m.Inputs[0].Focus())

@@ -10,13 +10,14 @@ import (
 
 // Define reusable UI styles using Lip Gloss
 var (
-	// Vibrant purple banner style for the application header
-	titleStyle = lipgloss.NewStyle().
+	// Vibrant purple banner style for the application header.
+	// MarginBottom is omitted — it inflates height in inline mode and causes
+	// Bubble Tea v2 to clip the top of multiline styled content.
+	bannerStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#6200EE")).
 			Foreground(lipgloss.Color("#FFFFFF")).
 			Padding(0, 2).
-			Bold(true).
-			MarginBottom(1)
+			Bold(true)
 
 	// Bright green style for successful operations
 	successStyle = lipgloss.NewStyle().
@@ -39,11 +40,26 @@ var (
 			Italic(true)
 )
 
+func renderBanner() string {
+	lines := []string{
+		" ____  ____  ____    _  _  ____    _  _  ____ ",
+		"/ ___)(  __)(_  _)  ( \\/ )(  __)  / )( \\(  _ \\",
+		"\\___ \\ ) _)   )(    / \\/ \\ ) _)   ) \\/ ( ) __/",
+		"(____/(____) (__)   \\_)(_/(____)  \\____/(__)  ",
+	}
+	styled := make([]string, len(lines))
+	for i, line := range lines {
+		styled[i] = bannerStyle.Render(line)
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, styled...)
+}
+
 // View renders the terminal screen based on the current step state
 func (m Model) View() tea.View {
 	// 1. Build the permanent application header banner
 	var b strings.Builder
-	b.WriteString(titleStyle.Render(" SETMEUP: FULL-STACK SCAFFOLDER ") + "\n")
+
+	b.WriteString(renderBanner() + "\n\n")
 
 	// 2. Render content blocks conditionally based on the active step
 	switch m.Step {
@@ -98,5 +114,7 @@ func (m Model) View() tea.View {
 	// 3. Append global footer exit instructions
 	b.WriteString("\n\n" + helpStyle.Render("[press ctrl+c or q to quit]") + "\n")
 
-	return tea.NewView(b.String())
+	v := tea.NewView(b.String())
+	v.AltScreen = true
+	return v
 }

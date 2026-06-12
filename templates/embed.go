@@ -14,6 +14,9 @@ var BackendDocker string
 //go:embed compose.yml.tmpl
 var ComposeYML string
 
+//go:embed Makefile.tmpl
+var Makefile string
+
 const FrontendDockerignore = `node_modules
 dist
 npm-debug.log
@@ -22,6 +25,18 @@ npm-debug.log
 .gitignore
 .env
 *.env
+`
+
+const BackendDockerignore = `
+.env
+*.env
+data/
+uploads/
+*.log
+dist/
+.git
+.gitignore
+tmp/
 `
 
 func Render(tmpl string, vars map[string]string) string {

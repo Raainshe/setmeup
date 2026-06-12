@@ -75,5 +75,23 @@ func (m Model) CreateWorkspace() tea.Msg {
 	if err != nil {
 		return errMsg(err)
 	}
+
+	//create Docker Compose File
+	composeFile := templates.Render(templates.ComposeYML, map[string]string{
+		"BACKEND_NAME":  m.BackendName,
+		"BACKEND_PORT":  m.BackendPort,
+		"FRONTEND_NAME": m.FrontendName,
+		"FRONTEND_PORT": m.FrontendPort,
+	})
+	if err := os.WriteFile("docker-compose.yml", []byte(composeFile), 0o644); err != nil {
+		return err
+	}
+
+	//create Makefile
+	makefile := templates.Render(templates.Makefile, map[string]string{})
+	if err := os.WriteFile("Makefile", []byte(makefile), 0o644); err != nil {
+		return err
+	}
+
 	return generateMsg("Workspace created successfully")
 }

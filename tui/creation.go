@@ -9,12 +9,18 @@ import (
 	"github.com/raainshe/setmeup/templates"
 )
 
+func writeRendered(path, tmpl string, vars map[string]string) error {
+	return os.WriteFile(path, []byte(templates.Render(tmpl, vars)), 0o644)
+}
+
 func (m Model) CreateFrontEnd() error {
+	vars := templateVars(m)
+
 	args := []string{
 		"create",
 		"vue@latest",
 		"--",
-		m.FrontendName,
+		vars["FRONTEND_NAME"],
 		"--ts",
 		"--router",
 		"--pinia",
@@ -25,24 +31,85 @@ func (m Model) CreateFrontEnd() error {
 		return err
 	}
 
-	port := m.FrontendPort
-	if port == "" {
-		port = "5173"
-	}
+	frontendDir := vars["FRONTEND_NAME"]
 
-	frontendDir := m.FrontendName
-	if frontendDir == "" {
-		frontendDir = "frontend"
-	}
-
-	dockerfile := templates.Render(templates.FrontendDocker, map[string]string{
-		"FRONTEND_PORT": port,
-	})
-	if err := os.WriteFile(filepath.Join(frontendDir, "Dockerfile"), []byte(dockerfile), 0o644); err != nil {
+	if err := writeRendered(
+		filepath.Join(frontendDir, "Dockerfile"),
+		templates.FrontendDocker,
+		map[string]string{"FRONTEND_PORT": vars["FRONTEND_PORT"]},
+	); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(frontendDir, ".dockerignore"), []byte(templates.FrontendDockerignore), 0o644); err != nil {
+	return os.WriteFile(
+		filepath.Join(frontendDir, ".dockerignore"),
+		[]byte(templates.FrontendDockerignore),
+		0o644,
+	)
+}
+
+func (m Model) injectBackend(vars map[string]string) error {
+	backendDir := vars["BACKEND_NAME"]
+
+	if err := writeRendered(
+		filepath.Join(backendDir, "Dockerfile"),
+		templates.BackendDocker,
+		map[string]string{"BACKEND_PORT": vars["BACKEND_PORT"]},
+	); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(
+		filepath.Join(backendDir, ".dockerignore"),
+		[]byte(templates.BackendDockerignore),
+		0o644,
+	); err != nil {
+		return err
+	}
+
+	if err := writeRendered(filepath.Join(backendDir, ".env.example"), templates.BackendEnvExample, vars); err != nil {
+		return err
+	}
+
+	if err := writeRendered(filepath.Join(backendDir, ".env"), templates.BackendEnv, vars); err != nil {
+		return err
+	}
+
+	if err := writeRendered(
+		filepath.Join(backendDir, "internal", "database", "database.go"),
+		templates.BackendDatabaseGo,
+		vars,
+	); err != nil {
+		return err
+	}
+
+	if err := writeRendered(
+		filepath.Join(backendDir, "internal", "database", "database_test.go"),
+		templates.BackendDatabaseTestGo,
+		vars,
+	); err != nil {
+		return err
+	}
+
+	if err := os.Remove(filepath.Join(backendDir, "docker-compose.yml")); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	makefilePath := filepath.Join(backendDir, "Makefile")
+	makefile, err := os.ReadFile(makefilePath)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(makefilePath, []byte(patchMakefile(string(makefile))), 0o644); err != nil {
+		return err
+	}
+
+	readmePath := filepath.Join(backendDir, "README.md")
+	readme, err := os.ReadFile(readmePath)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(readmePath, []byte(patchREADME(string(readme))), 0o644); err != nil {
 		return err
 	}
 
@@ -50,47 +117,38 @@ func (m Model) CreateFrontEnd() error {
 }
 
 func (m Model) CreateBackend() error {
+	vars := templateVars(m)
+
 	args := []string{
 		"create",
-		"--name", m.BackendName,
+		"--name", vars["BACKEND_NAME"],
 		"--framework", "gin",
 		"--driver", "mongo",
-		"--feature", "docker",
 		"--git", "skip",
 	}
-	err := exec.Command("go-blueprint", args...).Run()
-	if err != nil {
+	if err := exec.Command("go-blueprint", args...).Run(); err != nil {
 		return err
 	}
 
-	return nil
+	return m.injectBackend(vars)
 }
 
 func (m Model) CreateWorkspace() tea.Msg {
-	err := m.CreateFrontEnd()
-	if err != nil {
+	if err := m.CreateFrontEnd(); err != nil {
 		return errMsg(err)
 	}
-	err = m.CreateBackend()
-	if err != nil {
+	if err := m.CreateBackend(); err != nil {
 		return errMsg(err)
 	}
 
-	//create Docker Compose File
-	composeFile := templates.Render(templates.ComposeYML, map[string]string{
-		"BACKEND_NAME":  m.BackendName,
-		"BACKEND_PORT":  m.BackendPort,
-		"FRONTEND_NAME": m.FrontendName,
-		"FRONTEND_PORT": m.FrontendPort,
-	})
-	if err := os.WriteFile("docker-compose.yml", []byte(composeFile), 0o644); err != nil {
-		return err
+	vars := templateVars(m)
+
+	if err := writeRendered("docker-compose.yml", templates.ComposeYML, vars); err != nil {
+		return errMsg(err)
 	}
 
-	//create Makefile
-	makefile := templates.Render(templates.Makefile, map[string]string{})
-	if err := os.WriteFile("Makefile", []byte(makefile), 0o644); err != nil {
-		return err
+	if err := writeRendered("Makefile", templates.Makefile, vars); err != nil {
+		return errMsg(err)
 	}
 
 	return generateMsg("Workspace created successfully")

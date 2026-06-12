@@ -11,6 +11,18 @@ var FrontendDocker string
 //go:embed backend/docker.tmpl
 var BackendDocker string
 
+//go:embed backend/env.example.tmpl
+var BackendEnvExample string
+
+//go:embed backend/env.tmpl
+var BackendEnv string
+
+//go:embed backend/database.go.tmpl
+var BackendDatabaseGo string
+
+//go:embed backend/database_test.go.tmpl
+var BackendDatabaseTestGo string
+
 //go:embed compose.yml.tmpl
 var ComposeYML string
 
@@ -27,8 +39,7 @@ npm-debug.log
 *.env
 `
 
-const BackendDockerignore = `
-.env
+const BackendDockerignore = `.env
 *.env
 data/
 uploads/

@@ -1,0 +1,4 @@
+/backend
+/frontend
+Makefile
+docker-compose.yml
